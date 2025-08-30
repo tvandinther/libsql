@@ -123,11 +123,17 @@ int libsql_bind_string(libsql_stmt_t stmt, int idx, const char *value, const cha
 
 int libsql_bind_blob(libsql_stmt_t stmt, int idx, const unsigned char *value, int value_len, const char **out_err_msg);
 
+int libsql_stmt_parameter_count(libsql_stmt_t stmt, int *out_count, const char **out_err_msg);
+
+int libsql_stmt_columns(libsql_stmt_t stmt, const char *const **out_columns, int *out_len, const char **out_err_msg);
+
 int libsql_query_stmt(libsql_stmt_t stmt, libsql_rows_t *out_rows, const char **out_err_msg);
 
 int libsql_execute_stmt(libsql_stmt_t stmt, const char **out_err_msg);
 
 int libsql_reset_stmt(libsql_stmt_t stmt, const char **out_err_msg);
+
+int libsql_stmt_finalize(libsql_stmt_t stmt, const char **out_err_msg);
 
 void libsql_free_stmt(libsql_stmt_t stmt);
 
@@ -144,6 +150,8 @@ void libsql_wait_result(libsql_rows_future_t res);
 int libsql_column_count(libsql_rows_t res);
 
 int libsql_column_name(libsql_rows_t res, int col, const char **out_name, const char **out_err_msg);
+
+int libsql_stmt_parameter_name(libsql_stmt_t stmt, int index, const char **out_name, const char **out_err_msg);
 
 int libsql_column_type(libsql_rows_t res, libsql_row_t row, int col, int *out_type, const char **out_err_msg);
 

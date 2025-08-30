@@ -761,6 +761,44 @@ pub unsafe extern "C" fn libsql_stmt_parameter_count(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn libsql_stmt_columns(
+    stmt: libsql_stmt_t,
+    out_columns: *mut *const *const std::ffi::c_char,
+    out_len: *mut std::ffi::c_int,
+    out_err_msg: *mut *const std::ffi::c_char,
+) -> std::ffi::c_int {
+    if stmt.is_null() {
+        set_err_msg("Null statement".to_string(), out_err_msg);
+        return 1;
+    }
+    let stmt = stmt.get_ref_mut();
+    let column_names = stmt.stmt.columns();
+    let c_strings: Vec<std::ffi::CString> = column_names
+        .into_iter()
+        .map(|col| std::ffi::CString::new(col.name()).expect("CString::new failed"))
+        .collect();
+    let c_pointers: Vec<*const std::ffi::c_char> = c_strings
+        .iter()
+        .map(|s| s.as_ptr())
+        .collect();
+
+    if !out_len.is_null() {
+        match c_pointers.len().try_into() as Result<i32, _> {
+            Ok(i) => {
+                *out_len = i;
+            }
+            Err(e) => {
+                set_err_msg(format!("Error setting array length parameter: {}", e), out_err_msg);
+                return 1;
+            }
+        }
+    }
+
+    *out_columns = Box::leak(Box::new(c_pointers)).as_ptr();
+    0
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn libsql_query_stmt(
     stmt: libsql_stmt_t,
     out_rows: *mut libsql_rows_t,
