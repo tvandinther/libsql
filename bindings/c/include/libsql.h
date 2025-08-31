@@ -125,7 +125,9 @@ int libsql_bind_blob(libsql_stmt_t stmt, int idx, const unsigned char *value, in
 
 int libsql_stmt_parameter_count(libsql_stmt_t stmt, int *out_count, const char **out_err_msg);
 
-int libsql_stmt_columns(libsql_stmt_t stmt, const char *const **out_columns, int *out_len, const char **out_err_msg);
+int libsql_stmt_columns(libsql_stmt_t stmt, const char ***out_columns, int *out_len, const char **out_err_msg);
+
+void libsql_free_columns(LibsqlColumnNames *columns_ptr);
 
 int libsql_query_stmt(libsql_stmt_t stmt, libsql_rows_t *out_rows, const char **out_err_msg);
 

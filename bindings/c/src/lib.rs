@@ -763,7 +763,7 @@ pub unsafe extern "C" fn libsql_stmt_parameter_count(
 #[no_mangle]
 pub unsafe extern "C" fn libsql_stmt_columns(
     stmt: libsql_stmt_t,
-    out_columns: *mut *const *const std::ffi::c_char,
+    out_columns: *mut *mut *const std::ffi::c_char,
     out_len: *mut std::ffi::c_int,
     out_err_msg: *mut *const std::ffi::c_char,
 ) -> std::ffi::c_int {
@@ -773,14 +773,22 @@ pub unsafe extern "C" fn libsql_stmt_columns(
     }
     let stmt = stmt.get_ref_mut();
     let column_names = stmt.stmt.columns();
-    let c_strings: Vec<std::ffi::CString> = column_names
-        .into_iter()
-        .map(|col| std::ffi::CString::new(col.name()).expect("CString::new failed"))
-        .collect();
-    let c_pointers: Vec<*const std::ffi::c_char> = c_strings
-        .iter()
-        .map(|s| s.as_ptr())
-        .collect();
+    let mut c_strings: Vec<std::ffi::CString> = Vec::with_capacity(column_names.len());
+    let mut c_pointers: Vec<*const std::ffi::c_char> = Vec::with_capacity(column_names.len());
+
+    for col in column_names {
+        let cstr = match std::ffi::CString::new(col.name()) {
+            Ok(s) => s,
+            Err(e) => {
+                set_err_msg(format!("Invalid column name: {}", e), out_err_msg);
+                return 1;
+            }
+        };
+        c_pointers.push(cstr.as_ptr());
+        c_strings.push(cstr);
+    }
+
+    let _ = Box::leak(Box::new(c_strings));
 
     if !out_len.is_null() {
         match c_pointers.len().try_into() as Result<i32, _> {
@@ -794,8 +802,23 @@ pub unsafe extern "C" fn libsql_stmt_columns(
         }
     }
 
-    *out_columns = Box::leak(Box::new(c_pointers)).as_ptr();
+    let c_pointers_box = c_pointers.into_boxed_slice();
+    *out_columns = Box::into_raw(c_pointers_box) as *mut *const std::ffi::c_char;
     0
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn libsql_free_columns(columns_ptr: *mut LibsqlColumnNames) {
+    if columns_ptr.is_null() {
+        return;
+    }
+
+    let columns_box = Box::from_raw(columns_ptr);
+
+    let _ = Box::from_raw(std::slice::from_raw_parts_mut(
+        columns_box.columns as *mut *mut std::ffi::c_char,
+        columns_box.count as usize,
+    ));
 }
 
 #[no_mangle]
